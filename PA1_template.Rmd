@@ -7,19 +7,53 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
-
+```{r}
+library(dplyr)
+library(ggplot2)
+data <- read.csv(unz("activity.zip","activity.csv"))
+```
 ## What is mean total number of steps taken per day?
-
-
-
+```{r}
+list_dates <- split(data,data$date)
+steps_per_day <- sapply(list_dates,function(x){sum(x[,1])})
+hist(steps_per_day)
+c(mean = mean(steps_per_day,na.rm=T),median=median(steps_per_day,na.rm=T))
+```
 ## What is the average daily activity pattern?
+```{r}
+average_steps1 <- sapply(list_dates,function(x){mean(x[,1],na.rm=T)})
+average_steps1 <- data.frame("Date"=as.Date(names(average_steps1),"%Y-%m-%d"),
+                            "Average.Steps"=average_steps1)
+average_steps1%>%filter(!is.na(Average.Steps))%>%ggplot(aes(Date,Average.Steps)) + geom_line()
 
+list_intervals <- split(data,data$interval)
+average_steps2 <- sapply(list_intervals,function(x){mean(x[,1],na.rm=T)})
+average_steps2 <- data.frame("interval"=as.numeric(names(average_steps2)),
+                             "Average.Steps"=average_steps2)
+average_steps2$Interval[which.max(average_steps2$Average.Steps)]
 
+```
 
 ## Imputing missing values
 
 
-
+```{r}
+data %>% filter(is.na(steps)) %>% nrow
+data_noNa <- merge(data,average_steps2)
+data_noNa$steps[which(is.na(data_noNa$steps))] <- data_noNa$Average.Steps[which(is.na(data_noNa$steps))]
+data_noNa <- data_noNa %>% select(steps,date,interval)%>% arrange(date,interval)
+list_dates2 <- split(data_noNa,data_noNa$date)
+steps_per_day2 <- sapply(list_dates2,function(x){sum(x[,1])})
+hist(steps_per_day2)
+c(mean = mean(steps_per_day2),median=median(steps_per_day2))
+```
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+data_noNa$date <- as.Date(strptime(data_noNa$date,format="%Y-%m-%d"))
+data_noNa$day <- weekdays(data_noNa$date)
+data_noNa$day <- ifelse(data_noNa$day %in% c("sábado","domingo"),"weekend","weekday")
+StepsPerTimeDT <- aggregate(steps~interval+day,data=data_noNa,FUN=mean,na.action=na.omit)
+p <- ggplot(StepsPerTimeDT,aes(interval,steps)) + geom_line() + facet_grid(day~ .)
+p
+````
